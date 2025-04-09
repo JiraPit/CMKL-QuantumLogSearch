@@ -1,3 +1,7 @@
+"""
+Embedding classical data into quantum states.
+"""
+
 from qiskit.quantum_info import Statevector
 import numpy as np
 import random

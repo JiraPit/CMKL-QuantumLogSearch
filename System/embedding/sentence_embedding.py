@@ -1,8 +1,12 @@
+"""
+Embedding sentences into semantec vecotors
+"""
+
 from sentence_transformers import SentenceTransformer
 
 
 class SentenceEmbedder:
-    def __init__(self, model="all-MiniLM-L6-v2"):
+    def __init__(self, model):
         self.model = SentenceTransformer(model)
 
     def embed(self, sentences):
@@ -22,7 +26,7 @@ if __name__ == "__main__":
         "Quantum Computing Cookbook",
         "How to bake a cake",
     ]
-    se = SentenceEmbedder()
+    se = SentenceEmbedder(model="all-MiniLM-L6-v2")
     embeddings = se.embed(test_sentences)
     print(
         f"Generated {len(embeddings)} embeddings with dimension {embeddings.shape[1]}"
