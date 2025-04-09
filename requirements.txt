@@ -1,0 +1,6 @@
+qiskit
+qiskit_aer
+pandas
+numpy
+matplotlib
+sentence-transformer
