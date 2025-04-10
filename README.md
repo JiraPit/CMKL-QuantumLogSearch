@@ -1,63 +1,59 @@
 # Quantum Recommender System
 
-A quantum algorithm implementation that uses quantum computing for similarity search and recommendations.
+A quantum algorithm implementation that uses quantum computing for similarity search and recommendations based on article content.
 
 ## Overview
 
-This system leverages quantum computing concepts to implement a similarity search algorithm using Grover's search. The system uses a quantum oracle that checks if the cosine similarity between a state and a target exceeds a specified threshold.
+This system leverages quantum computing concepts to implement a similarity search algorithm for recommending articles. It embeds article text into quantum states and uses quantum state fidelity (overlap) to find articles with similar content.
 
 ## Architecture
 
 The system is organized into modular components:
 
-- **Main** (`main.py`): Contains the `QuantumRecommender` class that orchestrates the system
+- **Main** (`main.py`): Contains the `QuantumRecommender` class that orchestrates the system and provides the main interface
 - **Embedding**:
-  - `sentence_embedding.py`: Handles embedding of sentences into vectors
-  - `q_state_embedding.py`: Handles embedding classical data into quantum amplitudes
+  - `sentence_embedding.py`: Handles embedding of text content into vectors using Sentence Transformers
+  - `q_state_embedding.py`: Embeds classical vectors into quantum amplitudes
 - **Similarity Search**:
   - `circuit_builder.py`: Builds quantum circuits for similarity search
   - `simulator.py`: Manages Grover algorithm simulations
-- **State**:
-  - `quantum_state.py`: Creates and manipulates quantum states
+  - `utils/create_state.py`: Utility functions for quantum state creation
+
+## Dataset
+
+The system uses an article database CSV file that contains:
+- Index
+- Article full name
+- Article description
+- Article body
 
 ## Dependencies
 
-- Qiskit
-- Qiskit-Aer
-- NumPy
-- Sentence Transformers
-- Math
+- Qiskit and Qiskit-Aer for quantum simulation
+- NumPy for numerical operations
+- Pandas for data manipulation
+- Sentence Transformers for text embedding
 
 ## Usage
 
-The system has been designed with a dependency injection pattern for configuration. The `QuantumRecommender` class is the main entry point:
+To run the recommendation system:
 
 ```python
-from main import QuantumRecommender, DEFAULT_CONFIG
-
-# Use with default configuration
-recommender = QuantumRecommender()
-
-# Or with custom configuration
-custom_config = DEFAULT_CONFIG.copy()
-custom_config["NUM_QUBITS"] = 3
-custom_config["THRESHOLD"] = 0.2
-recommender = QuantumRecommender(config=custom_config)
-
-# Run similarity search
-results = recommender.run_high_similarity_search()
-
-# Use sentence embedding
-sentences = ["Quantum computing uses qubits", "Machine learning is powerful"]
-embeddings = recommender.embed_sentences(sentences)
+# Run the main script
+python main.py
 ```
 
-See `example.py` for more detailed usage examples.
+The system will:
+1. Load the article database
+2. Generate embeddings for all articles
+3. Prompt the user to select an article by index
+4. Display the selected article details
+5. Show recommended similar articles based on quantum similarity
+6. Allow the user to select from recommended articles to continue exploration
 
-## Configuration Parameters
+## How It Works
 
-- `NUM_QUBITS`: Number of qubits to use in quantum circuits (default: 5)
-- `THRESHOLD`: Similarity threshold for search (default: 0.1)
-- `SHOTS`: Number of simulation shots (default: 1024)
-- `EMBEDDING_MODEL`: Default sentence embedding model (default: "all-MiniLM-L6-v2")
-
+1. **Text Embedding**: Article text (title + description) is converted into semantic vectors
+2. **Quantum Embedding**: Vectors are embedded into quantum states
+3. **Similarity Calculation**: Quantum fidelity between states is used as similarity measure
+4. **Recommendation**: Articles with highest similarity to the selected article are recommended
