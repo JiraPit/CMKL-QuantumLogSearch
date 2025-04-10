@@ -29,7 +29,7 @@ if __name__ == "__main__":
 
     # Step 2: Apply PCA for dimensionality reduction
     print("\n--- Step 2: PCA Dimensionality Reduction ---")
-    pca_components = 64
+    pca_components = 2
     reduced_vectors = sentence_embedder.apply_pca(vectors, n_components=pca_components)
     print(f"Reduced embeddings shape: {reduced_vectors.shape}")
 

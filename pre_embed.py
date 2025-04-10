@@ -32,13 +32,13 @@ def precompute_embeddings():
     ]
     embeddings = sentence_embedder.embed(texts)
 
-    # Apply PCA to reduce dimensionality to 64 components
+    # Apply PCA to reduce
     print("Applying PCA to reduce dimensionality...")
-    reduced_embeddings = sentence_embedder.apply_pca(embeddings, n_components=64)
+    embeddings = sentence_embedder.apply_pca(embeddings, n_components=256)
 
-    # Select only 30 entries
+    # Select a subset of entries for quantum state preparation
     print("Selecting subset of entries for quantum state preparation...")
-    num_entries = min(30, len(reduced_embeddings))
+    num_entries = min(300, len(embeddings))
     selected_indices = list(range(num_entries))
 
     # Create a filtered dataframe with just the selected entries
@@ -46,9 +46,9 @@ def precompute_embeddings():
 
     # Save the embeddings and filtered dataframe
     output = {
-        "embeddings": reduced_embeddings[:num_entries],
+        "embeddings": embeddings[:num_entries],
         "filtered_df": filtered_df,
-        "vector_size": reduced_embeddings.shape[1],
+        "vector_size": embeddings.shape[1],
     }
 
     output_path = output_dir / "pre_embedded_data.pkl"
@@ -56,11 +56,8 @@ def precompute_embeddings():
         pickle.dump(output, f)
 
     print(f"Pre-computed embeddings saved to {output_path}")
-    print(
-        f"Selected {num_entries} articles with {reduced_embeddings.shape[1]} features each"
-    )
+    print(f"Selected {num_entries} articles with {embeddings.shape[1]} features each")
 
 
 if __name__ == "__main__":
     precompute_embeddings()
-

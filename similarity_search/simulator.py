@@ -3,9 +3,9 @@ Quantum Simulator for Grover algorithm simulations.
 """
 
 from math import pi, sqrt
+import numpy as np
 from qiskit import transpile
 from qiskit_aer import AerSimulator
-from similarity_search.utils.create_state import create_state
 from similarity_search.circuit_builder import QuantumCircuitBuilder
 
 
@@ -24,20 +24,27 @@ class GroverSimulationManager:
         Returns:
             int: Optimal number of iterations
         """
-        # Estimate fraction of states with similarity > threshold
-        if threshold > 0.9:
-            fraction = 0.125  # About 1/8 of states have very high similarity
-        elif threshold > 0.7:
-            fraction = 0.25  # About 2/8 of states have high similarity
-        elif threshold > 0.5:
-            fraction = 0.375  # About 3/8 of states have moderate similarity
-        elif threshold > 0.3:
-            fraction = 0.5  # About half of states have some similarity
-        else:
-            fraction = 0.75  # Most states have at least minimal similarity
-
         # Calculate total number of states in the system
         total_states = 2**n_qubits
+
+        # Calculate the expected fraction of states with similarity > threshold
+        # For quantum states, similarity relates to the inner product
+        # The threshold relates to the overlap probability, which is related to
+        # the distribution of inner product squared between random quantum states
+
+        # For random unit vectors in high dimensions, the distribution of inner products
+        # follows approximately a normal distribution, centered at 0 with standard deviation 1/sqrt(d)
+        # where d is the dimension (2^n_qubits)
+        # The probability of overlap > threshold decreases exponentially with threshold
+
+        # We use an exponential model: fraction = a * exp(-b * threshold)
+        # Where a and b are constants chosen to approximate the distribution
+        a = 0.9  # Maximum fraction at threshold = 0
+        b = 3.0  # Rate of decay with increasing threshold
+
+        fraction = a * np.exp(-b * threshold)
+        # Clamp to reasonable values
+        fraction = max(0.01, min(0.99, fraction))  # At least 1% and at most 99%
 
         estimated_solutions = max(1, int(total_states * fraction))
 
@@ -45,7 +52,8 @@ class GroverSimulationManager:
         # r = pi/4 * sqrt(N/M)
         optimal = int(pi / 4 * sqrt(total_states / estimated_solutions))
 
-        return optimal
+        # Ensure at least one iteration
+        return max(1, optimal)
 
     @staticmethod
     def simulate_and_analyze(circuit, reference_state, num_qubits, threshold, shots):
@@ -72,17 +80,14 @@ class GroverSimulationManager:
         job = simulator.run(transpiled, shots=shots)
         result = job.result()
         counts = result.get_counts()
-        
+
         # Return the raw measurement counts
         # The similarity comparison happens entirely within the quantum circuit (Grover's oracle)
-        return {
-            "counts": counts,
-            "total_shots": sum(counts.values())
-        }
+        return {"counts": counts, "total_shots": sum(counts.values())}
 
     @staticmethod
     def find_similar_states(
-        reference, states_dict, num_qubits, threshold=0.1, max_results=5, shots=1024
+        reference, states_dict, num_qubits, threshold, max_results, shots
     ):
         """
         Find quantum states similar to the reference state using quantum similarity search.
@@ -118,28 +123,34 @@ class GroverSimulationManager:
 
         # Extract similar states directly from the quantum circuit output
         similar_states = []
-        
+
         # Get the most frequently measured bitstrings (highest amplitude after Grover)
         # These are the ones that Grover's algorithm has amplified as similar
-        sorted_counts = sorted(results["counts"].items(), key=lambda x: x[1], reverse=True)
-        
+        sorted_counts = sorted(
+            results["counts"].items(), key=lambda x: x[1], reverse=True
+        )
+
         # Convert counts to indices directly
         # For each measurement result, we assign an article index
         # This approach assumes the bitstring directly maps to an index
         count = 0
         for bitstring, frequency in sorted_counts:
-            # Skip the reference article
             index = int(bitstring, 2)  # Convert binary string to integer
-            if index == reference_idx or index >= len(states_dict):
+
+            # TODO: Skip the reference article
+            # if index == reference_idx:
+            #     continue
+
+            if index not in states_dict.keys():
                 continue
-                
+
             # Calculate probability based on measurement frequency
             probability = frequency / results["total_shots"]
             similar_states.append((index, probability))
-            
+
             count += 1
             if count >= max_results:
                 break
-                
+
         # Return whatever we found (might be fewer than max_results)
         return similar_states

@@ -19,7 +19,7 @@ from similarity_search.simulator import GroverSimulationManager
 class QuantumRecommender:
     """Main class for quantum article recommendation system."""
 
-    def __init__(self, embedding_model="all-MiniLM-L6-v2", threshold=0.1, shots=1024):
+    def __init__(self, embedding_model="all-MiniLM-L6-v2", threshold=0.7, shots=1024):
         """
         Initialize the quantum recommender system.
 
@@ -161,7 +161,7 @@ def main():
     while True:
         try:
             # Get article index from user
-            print("\nEnter an article index to start (0-29) or 'q' to quit:")
+            print("\nEnter an article index to start or 'q' to quit:")
             user_input = input().strip()
 
             if user_input.lower() == "q":

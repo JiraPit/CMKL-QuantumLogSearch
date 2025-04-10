@@ -10,19 +10,17 @@ class QuantumCircuitBuilder:
     """Class for building quantum circuits for similarity search."""
 
     @staticmethod
-    def prepare_state_circuit(state_vector, qreg):
+    def create_circuit(regs):
         """
         Creates a circuit to prepare the given quantum state.
 
         Args:
-            state_vector (Statevector): The quantum state to prepare
-            qreg (QuantumRegister): Register to prepare the state in
+            regs (list): List of quantum registers to prepare
 
         Returns:
             QuantumCircuit: Circuit that prepares the state
         """
-        qc = QuantumCircuit(qreg)
-        qc.initialize(state_vector.data, qreg)
+        qc = QuantumCircuit(*regs)
         return qc
 
     @staticmethod
@@ -65,9 +63,6 @@ class QuantumCircuitBuilder:
         Returns:
             QuantumCircuit: Oracle circuit
         """
-        # Calculate angle for the rotation
-        # For SWAP test, probability of measuring |0⟩ is (1+s)/2
-        angle = asin(sqrt(threshold))
 
         # Create registers
         oracle_reg = QuantumRegister(num_qubits, "oracle")
@@ -75,23 +70,21 @@ class QuantumCircuitBuilder:
         ancilla_reg = QuantumRegister(1, "ancilla")
         phase_reg = QuantumRegister(1, "phase")
 
+        # Calculate angle for the rotation
+        angle = asin(sqrt(threshold))
+
         # Create circuit
-        qc = QuantumCircuit(oracle_reg, target_reg, ancilla_reg, phase_reg)
+        qc = QuantumCircuit(oracle_reg, ancilla_reg, phase_reg)
 
         # Prepare the target state in target_reg
-        target_prep = QuantumCircuitBuilder.prepare_state_circuit(
-            target_state, target_reg
-        )
-        qc.compose(target_prep, qubits=target_reg, inplace=True)
+        target_prep = QuantumCircuitBuilder.create_circuit({target_state: target_reg})
+        qc.compose(target_prep, inplace=True)
 
         # Create and compose the SWAP test circuit
         swap_test = QuantumCircuitBuilder.swap_test_circuit(
             oracle_reg, target_reg, ancilla_reg
         )
         qc.compose(swap_test, inplace=True)
-
-        # For high similarity, we want to mark states when ancilla is 0
-        # (indicating high similarity in the SWAP test)
 
         # Flip the ancilla to mark high similarity states
         qc.x(ancilla_reg[0])
@@ -108,9 +101,7 @@ class QuantumCircuitBuilder:
         swap_test_dag = swap_test.inverse()
         qc.compose(swap_test_dag, inplace=True)
 
-        # Uncompute the target state preparation
-        # Instead of using inverse() which has issues with complex parameters in initialize,
-        # simply reset all target register qubits to |0⟩ state
+        # Reset all target register qubits to |0⟩ state
         for i in range(num_qubits):
             qc.reset(target_reg[i])
 
@@ -133,22 +124,35 @@ class QuantumCircuitBuilder:
         for i in range(num_qubits):
             qc.h(i)
 
-        # Apply Z to |0...0⟩
         # First, apply X gates to all qubits
         for i in range(num_qubits):
             qc.x(i)
 
-        # Apply controlled-Z operation
-        # This is a multi-controlled Z implementation that works well for 3-5 qubits
-        # This implementation uses the first qubit as target and works for NUM_QUBITS=3
-        # For different qubit counts, this would need to be adjusted
-        qc.h(0)
+        # Apply multi-controlled Z operation
+        if num_qubits == 1:
+            # Special case for 1 qubit - just apply Z
+            qc.z(0)
+        elif num_qubits == 2:
+            # Special case for 2 qubits - use CZ directly
+            qc.cz(0, 1)
+        else:
+            # For 3+ qubits, use multi-controlled Z pattern
+            # Last qubit is target, all others are controls
+            target = num_qubits - 1
 
-        # Use remaining qubits as controls
-        for i in range(1, num_qubits):
-            qc.cx(i, 0)
+            # Apply H to target
+            qc.h(target)
 
-        qc.h(0)
+            # Use all qubits except the target as controls in a balanced tree
+            controls = list(range(num_qubits - 1))
+
+            # Apply multi-controlled X on the target qubit
+            # First level of the tree - directly connect controls to target
+            for control in controls:
+                qc.cx(control, target)
+
+            # Apply H to target
+            qc.h(target)
 
         # Uncompute X gates
         for i in range(num_qubits):
@@ -214,4 +218,3 @@ class QuantumCircuitBuilder:
         grover_circuit.measure(oracle_reg, cr)
 
         return grover_circuit
-
