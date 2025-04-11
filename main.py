@@ -11,7 +11,6 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 
-from embedding.sentence_embedding import SentenceEmbedder
 from embedding.q_state_embedding import QStateEmbedding
 from similarity_search.simulator import GroverSimulationManager
 
@@ -19,71 +18,14 @@ from similarity_search.simulator import GroverSimulationManager
 class QuantumRecommender:
     """Main class for quantum article recommendation system."""
 
-    def __init__(self, embedding_model="all-MiniLM-L6-v2", threshold=0.7, shots=1024):
-        """
-        Initialize the quantum recommender system.
-
-        Args:
-            embedding_model (str): Name of the sentence embedding model
-            threshold (float): Similarity threshold for search
-            shots (int): Number of simulation shots
-        """
+    def __init__(self, threshold=0.5, shots=1024):
         self.threshold = threshold
         self.shots = shots
-
-        # Initialize embedders
-        self.sentence_embedder = SentenceEmbedder(model=embedding_model)
 
         # Load and prepare data
         self.articles_df = None
         self.article_states = None
-        self.num_qubits = None
-
-    def load_dataset(self, dataset_path):
-        """
-        Load the article dataset.
-
-        Args:
-            dataset_path (str): Path to the dataset CSV file
-        """
-        self.articles_df = pd.read_csv(dataset_path)
-
-    def prepare_states(self, pca_components):
-        """
-        Prepare quantum states for all articles in the dataset.
-
-        Args:
-            pca_components (int): Number of components to keep after PCA
-        """
-        if self.articles_df is None:
-            raise ValueError("Dataset not loaded. Call load_dataset first.")
-
-        # Combine full name and description for embedding
-        texts = [
-            f"{row['doc_full_name']} {row['doc_description']}"
-            for _, row in self.articles_df.iterrows()
-        ]
-
-        # Create sentence embeddings
-        embeddings = self.sentence_embedder.embed(texts)
-
-        # Apply PCA to reduce dimensionality
-        reduced_embeddings = self.sentence_embedder.apply_pca(
-            embeddings, n_components=pca_components
-        )
-
-        # Determine number of qubits needed (based on reduced embedding dimension)
-        vector_size = reduced_embeddings.shape[1]
-        self.num_qubits = int(np.ceil(np.log2(vector_size)))
-        print(f"Using {self.num_qubits} qubits for quantum state representation")
-
-        # Create quantum states for each embedding and store with original index
-        self.article_states = {}
-        for i, embedding in enumerate(reduced_embeddings):
-            state = QStateEmbedding.amplitude_encode(embedding)
-            self.article_states[i] = state
-
-        return self.article_states
+        self.num_qubits: int | None = None
 
     def find_similar_articles(self, article_idx, max_results=5):
         """
@@ -120,12 +62,9 @@ class QuantumRecommender:
 
 
 def main():
-    # Initialize the recommender
-    recommender = QuantumRecommender()
-
-    # Check if pre-computed embeddings exist
     pre_computed_path = Path(__file__).parent / "pre_computed" / "pre_embedded_data.pkl"
 
+    # Check if pre-computed embeddings exist
     if not pre_computed_path.exists():
         print("Pre-computed embeddings not found. Run pre_embed.py first.")
         return
@@ -134,6 +73,9 @@ def main():
     print("Loading pre-computed embeddings...")
     with open(pre_computed_path, "rb") as f:
         pre_computed_data = pickle.load(f)
+
+    # Initialize the recommender
+    recommender = QuantumRecommender()
 
     # Extract data from the pickle file
     reduced_embeddings = pre_computed_data["embeddings"]

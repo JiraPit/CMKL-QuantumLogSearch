@@ -12,7 +12,7 @@ from qiskit.circuit import QuantumCircuit
 from qiskit.quantum_info import Statevector
 from qiskit_aer import AerSimulator
 
-from similarity_search.circuit_builder import QuantumCircuitBuilder
+from similarity_search.circuit_builder import SimilaritySearchCircuitBuilder
 
 
 def create_random_state(num_qubits):
@@ -59,12 +59,16 @@ def main():
         fidelity = np.abs(np.dot(state_1, np.conj(state_2))) ** 2
 
         # Create quantum circuit
-        qc = QuantumCircuitBuilder.create_circuit([state1_reg, state2_reg])
+        qc = QuantumCircuit(
+            ancilla_reg,
+            state1_reg,
+            state2_reg,
+            cr,
+        )
         qc.initialize(state_1, state1_reg)
         qc.initialize(state_2, state2_reg)
-        qc.add_register(ancilla_reg, cr)
 
-        swap_test = QuantumCircuitBuilder.swap_test_circuit(
+        swap_test = SimilaritySearchCircuitBuilder.swap_test_circuit(
             state1_reg,
             state2_reg,
             ancilla_reg,

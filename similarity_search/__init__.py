@@ -1,3 +1,3 @@
 """
-Similarity Search package for quantum recommender system
+Similarity Search Module
 """

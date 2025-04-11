@@ -15,7 +15,7 @@ from qiskit.circuit import QuantumCircuit
 from qiskit_aer import AerSimulator
 
 from embedding.q_state_embedding import QStateEmbedding
-from similarity_search.circuit_builder import QuantumCircuitBuilder
+from similarity_search.circuit_builder import SimilaritySearchCircuitBuilder
 
 
 def cosine_similarity(vec1, vec2):
@@ -108,7 +108,7 @@ def main():
         qc.initialize(state2, state2_reg)
 
         # Build swap test circuit
-        swap_test = QuantumCircuitBuilder.swap_test_circuit(
+        swap_test = SimilaritySearchCircuitBuilder.swap_test_circuit(
             state1_reg,
             state2_reg,
             ancilla_reg,

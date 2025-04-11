@@ -6,7 +6,7 @@ from math import pi, sqrt
 import numpy as np
 from qiskit import transpile
 from qiskit_aer import AerSimulator
-from similarity_search.circuit_builder import QuantumCircuitBuilder
+from similarity_search.circuit_builder import SimilaritySearchCircuitBuilder
 
 
 class GroverSimulationManager:
@@ -112,7 +112,7 @@ class GroverSimulationManager:
         )
 
         # Create the quantum circuit for similarity search
-        circuit = QuantumCircuitBuilder.grover_search_high_similarity(
+        circuit = SimilaritySearchCircuitBuilder.grover_search_high_similarity(
             reference_state, num_qubits, iterations, threshold
         )
 

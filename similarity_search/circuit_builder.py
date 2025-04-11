@@ -6,35 +6,13 @@ from math import asin, sqrt
 from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister
 
 
-class QuantumCircuitBuilder:
+class SimilaritySearchCircuitBuilder:
     """Class for building quantum circuits for similarity search."""
-
-    @staticmethod
-    def create_circuit(regs):
-        """
-        Creates a circuit to prepare the given quantum state.
-
-        Args:
-            regs (list): List of quantum registers to prepare
-
-        Returns:
-            QuantumCircuit: Circuit that prepares the state
-        """
-        qc = QuantumCircuit(*regs)
-        return qc
 
     @staticmethod
     def swap_test_circuit(state1_qreg, state2_qreg, ancilla_qreg):
         """
         Constructs a SWAP test circuit between two quantum registers.
-
-        Args:
-            state1_qreg (QuantumRegister): First quantum register
-            state2_qreg (QuantumRegister): Second quantum register
-            ancilla_qreg (QuantumRegister): Ancilla qubit register
-
-        Returns:
-            QuantumCircuit: SWAP test circuit
         """
         qc = QuantumCircuit(ancilla_qreg, state1_qreg, state2_qreg)
 
@@ -51,17 +29,9 @@ class QuantumCircuitBuilder:
         return qc
 
     @staticmethod
-    def similarity_oracle(target_state, num_qubits, threshold):
+    def oracle_circuit(target_state, num_qubits, threshold):
         """
-        Creates an oracle that marks states with similarity GREATER than threshold to target_state.
-
-        Args:
-            target_state (Statevector): The target state to compare against
-            num_qubits (int): Number of qubits in each state
-            threshold (float): Minimum similarity threshold (0 to 1)
-
-        Returns:
-            QuantumCircuit: Oracle circuit
+        Creates an oracle that marks states with similarity greater than threshold to target_state.
         """
 
         # Create registers
@@ -70,24 +40,25 @@ class QuantumCircuitBuilder:
         ancilla_reg = QuantumRegister(1, "ancilla")
         phase_reg = QuantumRegister(1, "phase")
 
-        # Calculate angle for the rotation
-        angle = asin(sqrt(threshold))
-
         # Create circuit
-        qc = QuantumCircuit(oracle_reg, ancilla_reg, phase_reg)
+        qc = QuantumCircuit(oracle_reg, target_reg, ancilla_reg, phase_reg)
 
         # Prepare the target state in target_reg
-        target_prep = QuantumCircuitBuilder.create_circuit({target_state: target_reg})
-        qc.compose(target_prep, inplace=True)
+        qc.initialize(target_state, target_reg)
 
         # Create and compose the SWAP test circuit
-        swap_test = QuantumCircuitBuilder.swap_test_circuit(
-            oracle_reg, target_reg, ancilla_reg
+        swap_test = SimilaritySearchCircuitBuilder.swap_test_circuit(
+            oracle_reg,
+            target_reg,
+            ancilla_reg,
         )
         qc.compose(swap_test, inplace=True)
 
         # Flip the ancilla to mark high similarity states
         qc.x(ancilla_reg[0])
+
+        # Calculate angle for the rotation
+        angle = asin(sqrt(threshold))
 
         # Apply controlled phase rotation based on similarity threshold
         qc.ch(ancilla_reg[0], phase_reg[0])  # Apply controlled-H
@@ -108,7 +79,7 @@ class QuantumCircuitBuilder:
         return qc
 
     @staticmethod
-    def diffusion_operator(num_qubits):
+    def diffuser_circuit(num_qubits):
         """
         Creates the standard diffusion operator for Grover's algorithm.
 
@@ -130,10 +101,8 @@ class QuantumCircuitBuilder:
 
         # Apply multi-controlled Z operation
         if num_qubits == 1:
-            # Special case for 1 qubit - just apply Z
             qc.z(0)
         elif num_qubits == 2:
-            # Special case for 2 qubits - use CZ directly
             qc.cz(0, 1)
         else:
             # For 3+ qubits, use multi-controlled Z pattern
@@ -197,12 +166,12 @@ class QuantumCircuitBuilder:
             grover_circuit.h(oracle_reg[i])
 
         # Get the oracle for high similarity
-        oracle = QuantumCircuitBuilder.similarity_oracle(
+        oracle = SimilaritySearchCircuitBuilder.oracle_circuit(
             target_state, num_qubits, threshold
         )
 
         # Get the diffusion operator
-        diffusion = QuantumCircuitBuilder.diffusion_operator(num_qubits)
+        diffusion = SimilaritySearchCircuitBuilder.diffuser_circuit(num_qubits)
 
         # Apply the Grover iterations
         for _ in range(iterations):
