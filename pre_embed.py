@@ -27,7 +27,8 @@ def precompute_embeddings():
     # Encode all entries to vectors
     print("Generating sentence embeddings for all articles...")
     texts = [
-        f"{row['doc_full_name']} {row['doc_description']}"
+        # f"{row['doc_full_name']} {row['doc_description']}"
+        row["doc_full_name"]
         for _, row in articles_df.iterrows()
     ]
     embeddings = sentence_embedder.embed(texts)

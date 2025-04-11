@@ -18,6 +18,21 @@ from embedding.q_state_embedding import QStateEmbedding
 from similarity_search.circuit_builder import QuantumCircuitBuilder
 
 
+def cosine_similarity(vec1, vec2):
+    vec1 = np.array(vec1)
+    vec2 = np.array(vec2)
+    dot_product = np.dot(vec1, vec2)
+    norm1 = np.linalg.norm(vec1)
+    norm2 = np.linalg.norm(vec2)
+    return dot_product / (norm1 * norm2 + 1e-10)
+
+
+def euclidean_distance(vec1, vec2):
+    vec1 = np.array(vec1)
+    vec2 = np.array(vec2)
+    return np.linalg.norm(vec1 - vec2)
+
+
 def main():
     """Main function to run the swap test demo."""
     print("Quantum Swap Test Demo")
@@ -60,7 +75,6 @@ def main():
     print(f"Prepared states for {len(article_states)} articles")
 
     # Setup simulator
-    simulator = AerSimulator()
     shots = 1024
 
     # Perform swap tests
@@ -69,14 +83,11 @@ def main():
         # Randomly select two article indices
         article_indices = list(article_states.keys())
         idx1, idx2 = random.sample(article_indices, 2)
+        # idx1, idx2 = 217, 99
 
         # Get the quantum states
         state1 = article_states[idx1]
         state2 = article_states[idx2]
-
-        # Or calculate classical fidelity to compare with quantum result
-        classical_fidelity = np.abs(np.dot(state1, np.conj(state2))) ** 2
-        print(f"Classical fidelity: {classical_fidelity:.4f}")
 
         # Print selected articles
         print(f"\nTest {i+1}/{num_tests}:")
@@ -92,10 +103,9 @@ def main():
         cr = ClassicalRegister(1, "result")
 
         # Create circuit and initialize states
-        qc = QuantumCircuitBuilder.create_circuit([state1_reg, state2_reg])
+        qc = QuantumCircuit(ancilla_reg, state1_reg, state2_reg, cr)
         qc.initialize(state1, state1_reg)
         qc.initialize(state2, state2_reg)
-        qc.add_register(ancilla_reg, cr)
 
         # Build swap test circuit
         swap_test = QuantumCircuitBuilder.swap_test_circuit(
@@ -103,18 +113,18 @@ def main():
             state2_reg,
             ancilla_reg,
         )
-        qc = qc.compose(swap_test)
-        assert isinstance(qc, QuantumCircuit)
+
+        # Build swap test circuit
+        qc.compose(swap_test, inplace=True)
 
         # Measure ancilla qubit to classical bit
         qc.measure(ancilla_reg[0], cr[0])
 
+        simulator = AerSimulator()
         transpiled = transpile(qc, simulator)
         job = simulator.run(transpiled, shots=shots)
         result = job.result()
         counts = result.get_counts()
-
-        print("Measurement results:", counts)
 
         # Calculate probability of measuring |0⟩
         p_zero = counts.get("0", 0) / shots
@@ -122,7 +132,10 @@ def main():
         # For SWAP test, similarity = 2*p_zero - 1
         similarity = 2 * p_zero - 1
 
+        print("Measurement results:", counts)
         print(f"Similarity: {similarity:.4f}")
+        print(f"Cosine similarity: {cosine_similarity(state1, state2):.4f}")
+        print(f"Euclidean distance: {euclidean_distance(state1, state2):.4f}")
 
 
 if __name__ == "__main__":
