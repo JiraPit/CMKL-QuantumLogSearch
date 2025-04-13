@@ -74,7 +74,6 @@ The oracle marks database entries similar to the target vector (omega):
 
 4. **Uncomputation**:
    - The ancilla is uncomputed to disentangle it from the rest of the system
-   - Note: The current implementation may have an issue with the uncomputation step
 
 ### 3.2 Grover Iteration
 
