@@ -44,7 +44,7 @@ class GroverSearch:
         self.swap_test = SwapTest()
 
         # Calculate optimal number of Grover iterations
-        self.num_iterations = int(np.pi / 4 * np.sqrt(2**num_index_qubits))
+        self.iterations = int(np.pi / 4 * np.sqrt(2**num_index_qubits))
 
     def _amplitude_encoding(self, vector, wires):
         """
@@ -88,6 +88,7 @@ class GroverSearch:
         In a real quantum system, this would use the ancilla bit from the swap test.
         """
         # Lookup data from QRAM based on index register
+        # TODO: Is this the correct way to retrieve data from QRAM?
         self.qram.build_lookup_circuit()
 
         # Perform swap test to compare retrieved data with target omega
@@ -95,11 +96,10 @@ class GroverSearch:
             self.data_wires, self.omega_wires, self.ancilla_wire
         )
 
-        # Mark states where the data matches the target (ancilla = |0⟩)
-        # First apply X to the ancilla to convert |0⟩ to |1⟩
+        # Apply X to the ancilla to convert 0 to 1
         qml.PauliX(wires=self.ancilla_wire)
 
-        # Apply controlled-Z to index register when ancilla is |1⟩
+        # Apply controlled-Z to index register when ancilla is 1
         # This marks states where data is similar to the target
         for wire in self.index_wires:
             qml.ctrl(qml.PauliZ, control=self.ancilla_wire, control_values=1)(
@@ -108,6 +108,7 @@ class GroverSearch:
 
         # Uncompute ancilla
         qml.PauliX(wires=self.ancilla_wire)
+        # TODO: is it really correct to apply the swap test again as an uncompute?
         self.swap_test.build_circuit(
             self.data_wires, self.omega_wires, self.ancilla_wire
         )
@@ -119,12 +120,12 @@ class GroverSearch:
         # Apply oracle to mark states similar to target
         self._oracle()
 
-        # Step 4: Diffusion operator
+        # Diffusion operator
         # Apply Hadamard to all index qubits
         for i in self.index_wires:
             qml.Hadamard(wires=i)
 
-        # Apply Z to |0⟩ state
+        # Apply Z to 0 state
         for i in self.index_wires:
             qml.PauliX(wires=i)
 
@@ -148,14 +149,9 @@ class GroverSearch:
         for i in self.index_wires:
             qml.Hadamard(wires=i)
 
-    def build_circuit(self, database, omega, iterations=None):
+    def build_circuit(self, database, omega, iterations):
         """
         Build the complete Grover search circuit
-
-        Args:
-            database: Dictionary mapping indices to data vectors
-            omega: Target vector to search for similar entries
-            iterations: Optional number of Grover iterations (default is optimal)
         """
         # Load the database into QRAM
         self.qram.load_database(database)
@@ -167,14 +163,10 @@ class GroverSearch:
         self._initialize_index_register()
 
         # Set number of iterations if provided
-        if iterations is not None:
-            self.num_iterations = iterations
-        else:
-            # Use just a single iteration for this small example
-            self.num_iterations = 1
+        self.iterations = iterations
 
         # Apply Grover iterations
-        for _ in range(self.num_iterations):
+        for _ in range(self.iterations):
             self._grover_iteration()
 
         # Measure the index register
@@ -183,21 +175,13 @@ class GroverSearch:
     def search(self, database, omega, num_shots=1000, iterations=None, dev=None):
         """
         Perform Grover's search to find database entries similar to omega
-
-        Args:
-            database: Dictionary mapping indices to data vectors
-            omega: Target vector to search for similar entries
-            num_shots: Number of measurements to perform
-            iterations: Optional number of Grover iterations (default is optimal)
-            dev: Optional PennyLane device (default is lightning.qubit)
-
-        Returns:
-            Dictionary of results with indices and their counts
         """
         # If no device provided, use default
         if dev is None:
             dev = qml.device(
-                "lightning.qubit", wires=self.total_qubits, shots=num_shots
+                "lightning.qubit",
+                wires=self.total_qubits,
+                shots=num_shots,
             )
 
         # Define the quantum circuit
@@ -211,6 +195,7 @@ class GroverSearch:
         # Convert binary samples to integers for easier interpretation
         int_results = [int("".join(str(b) for b in sample), 2) for sample in results]
 
+        # Count occurrences of each result
         counts = Counter(int_results)
         print(f"Counts: {counts}")
         print(f"Counted {len(int_results)} samples")

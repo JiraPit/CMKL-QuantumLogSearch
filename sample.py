@@ -10,16 +10,17 @@ DATABASE = {}
 for i in range(16):
     # Convert to 4-bit binary string
     key = format(i, "04b")
-    vector = np.random.rand(16)
+    # Generate random components with both positive and negative values
+    vec = np.random.normal(0, 1, 2**4)
     # Normalize the vector
-    vector = vector / np.linalg.norm(vector)
-    DATABASE[key] = vector.tolist()
+    vec = vec / np.linalg.norm(vec)
+    DATABASE[key] = vec
 
 
 def main():
     print("Database:")
     for key, value in DATABASE.items():
-        print(f"  {key}: {value}")
+        print(f"  {key}: {np.round(value, 1)}")
 
     # Setup the Grover search
     vector_dim = len(list(DATABASE.values())[0])
@@ -31,24 +32,27 @@ def main():
     iterations = int(np.floor(np.pi / 4 * np.sqrt(num_entries)))
 
     print(f"\nUsing {num_index_qubits} index qubits and {num_data_qubits} data qubits")
-    print(
-        f"Automatically calculated {iterations} Grover iterations for {num_entries} database entries"
-    )
     print(f"Using {SHOTS} measurement shots")
 
     # Ask for user input for the target vector
-    print("\nEnter your target vector (16 comma-separated values) or 'c' followed by a number to use a database entry:")
+    print(
+        "\nEnter your target vector (comma-separated values) or 'c' followed by a number to use a database entry:"
+    )
     try:
         user_input = input(">> ")
-        if user_input.startswith('c'):
+        if user_input.startswith("c"):
             try:
                 db_index = int(user_input[1:])
                 binary_idx = format(db_index, "04b")
                 if binary_idx not in DATABASE:
-                    print(f"Error: Database entry with index {db_index} ({binary_idx}) does not exist.")
+                    print(
+                        f"Error: Database entry with index {db_index} ({binary_idx}) does not exist."
+                    )
                     return
                 omega = DATABASE[binary_idx]
-                print(f"Using database entry at index {db_index} ({binary_idx}) as omega.")
+                print(
+                    f"Using database entry at index {db_index} ({binary_idx}) as omega."
+                )
             except ValueError:
                 print("Error: Please enter a valid database index after 'c'.")
                 return
@@ -86,13 +90,15 @@ def main():
         iterations=iterations,
     )
 
+    results = sorted(results.items(), key=lambda x: x[1], reverse=True)
+
     print("\nResults (probability of measuring each index):")
-    for idx, prob in results.items():
+    for idx, prob in results:
         binary_idx = format(idx, f"0{num_index_qubits}b")
         print(f"  Index {binary_idx}: {prob:.4f}")
 
     # Find the most likely result
-    best_match = max(results.items(), key=lambda x: x[1])
+    best_match = max(results, key=lambda x: x[1])
     best_idx = format(best_match[0], f"0{num_index_qubits}b")
 
     print(f"\nBest match: Index {best_idx} with probability {best_match[1]:.4f}")

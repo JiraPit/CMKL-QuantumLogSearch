@@ -51,7 +51,7 @@ class QRAM:
 
         # Verify all vectors have the same dimension
         vector_lens = [len(vector) for vector in self.database.values()]
-        if not all(l == vector_lens[0] for l in vector_lens):
+        if not all(vl == vector_lens[0] for vl in vector_lens):
             raise ValueError("All vectors in database must have the same dimension")
 
         # Normalize vectors for amplitude encoding
@@ -116,4 +116,3 @@ class QRAM:
         # For each index in the database, selectively prepare the corresponding state
         for idx, vector in self.database.items():
             self._selective_state_preparation(idx, vector)
-
