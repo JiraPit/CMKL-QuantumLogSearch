@@ -90,22 +90,4 @@ Command-line interface that coordinates the quantum recommender components.
 
 ## Working Principle
 
-The system operates through these steps:
-
-1. **Quantum Data Storage**:
-   - Classical vectors are normalized and encoded into quantum amplitudes
-   - QRAM uses controlled operations to map indices to quantum data
-
-2. **Similarity Detection**:
-   - Swap test creates interference based on quantum state overlap
-   - Ancilla qubit captures similarity information in its measurement probability
-
-3. **Amplitude Amplification**:
-   - Oracle marks states where data is similar to target
-   - Diffusion operator amplifies marked states
-   - Multiple iterations progressively increase probability of finding similar items
-
-4. **Measurement and Processing**:
-   - Index register is measured to identify similar vectors
-   - Multiple shots provide statistical distribution of results
-   - System returns indices with highest measurement frequency
+Full working principle can be found at: [WORKING_PRINCIPLE](WORKING_PRINCIPLE.md)
