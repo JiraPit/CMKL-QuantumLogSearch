@@ -1,3 +1,0 @@
-"""
-Similarity Search Module
-"""

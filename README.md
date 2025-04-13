@@ -1,59 +1,111 @@
 # Quantum Recommender System
 
-A quantum algorithm implementation that uses quantum computing for similarity search and recommendations based on article content.
+A quantum similarity search implementation using QRAM, Swap Test, and Grover's algorithm for quantum recommender systems.
 
-## Overview
+## Project Structure and Implementation Details
 
-This system leverages quantum computing concepts to implement a similarity search algorithm for recommending articles. It embeds article text into quantum states and uses quantum state fidelity (overlap) to find articles with similar content.
+### File Structure
 
-## Architecture
-
-The system is organized into modular components:
-
-- **Main** (`main.py`): Contains the `QuantumRecommender` class that orchestrates the system and provides the main interface
-- **Embedding**:
-  - `sentence_embedding.py`: Handles embedding of text content into vectors using Sentence Transformers
-  - `q_state_embedding.py`: Embeds classical vectors into quantum amplitudes
-- **Similarity Search**:
-  - `circuit_builder.py`: Builds quantum circuits for similarity search
-  - `simulator.py`: Manages Grover algorithm simulations
-  - `utils/create_state.py`: Utility functions for quantum state creation
-
-## Dataset
-
-The system uses an article database CSV file that contains:
-- Index
-- Article full name
-- Article description
-- Article body
-
-## Dependencies
-
-- Qiskit and Qiskit-Aer for quantum simulation
-- NumPy for numerical operations
-- Pandas for data manipulation
-- Sentence Transformers for text embedding
-
-## Usage
-
-To run the recommendation system:
-
-```python
-# Run the main script
-python main.py
+```
+vibe/
+├── qram/
+│   ├── __init__.py
+│   └── qram.py         # QRAM implementation
+├── swap_test/
+│   ├── __init__.py
+│   └── swap_test.py    # Swap Test implementation
+├── grover/
+│   ├── __init__.py
+│   └── grover.py       # Grover's algorithm implementation
+├── main.py             # Command-line interface
+└── various test files  # Unit and integration tests
 ```
 
-The system will:
-1. Load the article database
-2. Generate embeddings for all articles
-3. Prompt the user to select an article by index
-4. Display the selected article details
-5. Show recommended similar articles based on quantum similarity
-6. Allow the user to select from recommended articles to continue exploration
+### QRAM Module (qram/qram.py)
 
-## How It Works
+The QRAM module implements quantum random access memory for storing and retrieving quantum data.
 
-1. **Text Embedding**: Article text (title + description) is converted into semantic vectors
-2. **Quantum Embedding**: Vectors are embedded into quantum states
-3. **Similarity Calculation**: Quantum fidelity between states is used as similarity measure
-4. **Recommendation**: Articles with highest similarity to the selected article are recommended
+**Class: QRAM**
+- **Purpose**: Maps indices to data vectors using quantum operations
+- **Key Methods**:
+  - `__init__(num_index_qubits, num_data_qubits)`: Initializes the QRAM with specified dimensions
+  - `load_database(database)`: Loads classical vectors into quantum superposition
+  - `_amplitude_encoding(vector, wires)`: Encodes classical vectors into qubit amplitudes
+  - `_selective_state_preparation(target_idx, vector)`: Prepares specific states conditional on index
+  - `build_lookup_circuit()`: Creates quantum circuit that performs data lookup based on index
+
+**Technical Implementation**:
+- Uses controlled operations to selectively load data based on index register state
+- Maps binary index strings to quantum amplitude-encoded data vectors
+- Ensures data normalization for proper quantum amplitude encoding
+- Operates on separate index and data wire registries
+
+### Swap Test Module (swap_test/swap_test.py)
+
+The Swap Test module implements quantum similarity measurement between quantum states.
+
+**Class: SwapTest**
+- **Purpose**: Quantifies similarity between two quantum states
+- **Key Methods**:
+  - `build_circuit(state1_wires, state2_wires, ancilla_wire)`: Creates swap test circuit
+
+**Technical Implementation**:
+- Applies Hadamard gate to ancilla qubit
+- Performs controlled-SWAP operations between corresponding qubits in the two states
+- Final Hadamard on ancilla creates interference pattern reflecting state similarity
+- Probability of measuring ancilla as |0⟩ relates to state overlap: p(|0⟩) = (1 + |⟨ψ|φ⟩|²)/2
+- Identical states yield p(|0⟩) = 1, orthogonal states yield p(|0⟩) = 0.5
+
+### Grover Search Module (grover/grover.py)
+
+The Grover Search module implements quantum search with amplitude amplification.
+
+**Class: GroverSearch**
+- **Purpose**: Finds database entries similar to a target vector using quantum amplitude amplification
+- **Key Methods**:
+  - `_initialize_omega(omega)`: Initializes target state
+  - `_initialize_index_register()`: Creates superposition of all possible indices
+  - `_oracle()`: Marks states similar to target omega using QRAM and swap test
+  - `_grover_iteration()`: Performs one iteration of Grover's algorithm
+  - `build_circuit(database, omega, iterations)`: Constructs complete quantum circuit
+  - `search(database, omega, num_shots, iterations)`: Executes search and returns results
+
+**Technical Implementation**:
+- Integrates QRAM and SwapTest in the oracle function
+- Oracle implements phase-flip on states where swap test indicates high similarity
+- Diffusion operator implements reflection about average amplitude
+- Wire management ensures proper connectivity between index, data, omega, and ancilla qubits
+- Optimal number of iterations calculated as O(√N) where N is database size
+
+### Main Program (main.py)
+
+Command-line interface that coordinates the quantum recommender components.
+
+**Implementation Details**:
+- Parses command-line arguments for target vector, iterations, and shots
+- Initializes the Grover search with appropriate dimensions
+- Executes quantum search and collects measurement results
+- Displays quantum and classical similarity results for comparison
+- Database contains 4 vectors indexed by 2-qubit states (00, 01, 10, 11)
+
+## Working Principle
+
+The system operates through these steps:
+
+1. **Quantum Data Storage**:
+   - Classical vectors are normalized and encoded into quantum amplitudes
+   - QRAM uses controlled operations to map indices to quantum data
+
+2. **Similarity Detection**:
+   - Swap test creates interference based on quantum state overlap
+   - Ancilla qubit captures similarity information in its measurement probability
+
+3. **Amplitude Amplification**:
+   - Oracle marks states where data is similar to target
+   - Diffusion operator amplifies marked states
+   - Multiple iterations progressively increase probability of finding similar items
+
+4. **Measurement and Processing**:
+   - Index register is measured to identify similar vectors
+   - Multiple shots provide statistical distribution of results
+   - System returns indices with highest measurement frequency

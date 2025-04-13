@@ -62,4 +62,3 @@ if __name__ == "__main__":
     # Test PCA reduction
     reduced = se.apply_pca(embeddings, n_components=16)
     print(f"Reduced embedding: {reduced[0]}")
-
