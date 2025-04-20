@@ -1,5 +1,4 @@
 import pennylane as qml
-import numpy as np
 
 
 class SwapTest:
@@ -46,9 +45,3 @@ class SwapTest:
 
         # Apply Hadamard to ancilla again
         qml.Hadamard(wires=ancilla_wire)
-
-        # At this point:
-        # - If states are identical, ancilla will be |0⟩ with probability 1
-        # - If states are orthogonal, ancilla will be |0⟩ or |1⟩ with equal probability
-        # - For partially similar states, probability is related to overlap |⟨ψ|φ⟩|²
-

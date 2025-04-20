@@ -7,7 +7,7 @@ A quantum similarity search implementation using QRAM, Swap Test, and Grover's a
 ### File Structure
 
 ```
-vibe/
+QuantumRecommender/
 ├── qram/
 │   ├── __init__.py
 │   └── qram.py         # QRAM implementation
@@ -17,7 +17,19 @@ vibe/
 ├── grover/
 │   ├── __init__.py
 │   └── grover.py       # Grover's algorithm implementation
-├── main.py             # Command-line interface
+├── embedding/
+│   ├── __init__.py
+│   └── sentence_embedding.py # Sentence embedding implementation
+├── dataset/
+│   └── articles_database.csv # Input article dataset
+├── pre_computed/
+│   └── pre_embedded_data.pkl # Pre-computed embeddings
+├── diagrams/           # All circuit diagrams
+│   ├── grover/         # Grover's circuit diagrams
+│   ├── swap_test/      # Swap Test's circuit diagrams
+│   └── qram/           # QRAM's circuit diagrams
+├── embed.py            # Embedding generation script
+├── main.py             # Interactive recommender interface
 └── various test files  # Unit and integration tests
 ```
 
@@ -26,6 +38,7 @@ vibe/
 The QRAM module implements quantum random access memory for storing and retrieving quantum data.
 
 **Class: QRAM**
+
 - **Purpose**: Maps indices to data vectors using quantum operations
 - **Key Methods**:
   - `__init__(num_index_qubits, num_data_qubits)`: Initializes the QRAM with specified dimensions
@@ -35,6 +48,7 @@ The QRAM module implements quantum random access memory for storing and retrievi
   - `build_lookup_circuit()`: Creates quantum circuit that performs data lookup based on index
 
 **Technical Implementation**:
+
 - Uses controlled operations to selectively load data based on index register state
 - Maps binary index strings to quantum amplitude-encoded data vectors
 - Ensures data normalization for proper quantum amplitude encoding
@@ -45,11 +59,13 @@ The QRAM module implements quantum random access memory for storing and retrievi
 The Swap Test module implements quantum similarity measurement between quantum states.
 
 **Class: SwapTest**
+
 - **Purpose**: Quantifies similarity between two quantum states
 - **Key Methods**:
   - `build_circuit(state1_wires, state2_wires, ancilla_wire)`: Creates swap test circuit
 
 **Technical Implementation**:
+
 - Applies Hadamard gate to ancilla qubit
 - Performs controlled-SWAP operations between corresponding qubits in the two states
 - Final Hadamard on ancilla creates interference pattern reflecting state similarity
@@ -61,6 +77,7 @@ The Swap Test module implements quantum similarity measurement between quantum s
 The Grover Search module implements quantum search with amplitude amplification.
 
 **Class: GroverSearch**
+
 - **Purpose**: Finds database entries similar to a target vector using quantum amplitude amplification
 - **Key Methods**:
   - `_initialize_omega(omega)`: Initializes target state
@@ -71,6 +88,7 @@ The Grover Search module implements quantum search with amplitude amplification.
   - `search(database, omega, num_shots, iterations)`: Executes search and returns results
 
 **Technical Implementation**:
+
 - Integrates QRAM and SwapTest in the oracle function
 - Oracle implements phase-flip on states where swap test indicates high similarity
 - Diffusion operator implements reflection about average amplitude
@@ -79,14 +97,47 @@ The Grover Search module implements quantum search with amplitude amplification.
 
 ### Main Program (main.py)
 
-Command-line interface that coordinates the quantum recommender components.
+Interactive command-line interface that implements the quantum recommender system.
 
 **Implementation Details**:
-- Parses command-line arguments for target vector, iterations, and shots
-- Initializes the Grover search with appropriate dimensions
-- Executes quantum search and collects measurement results
-- Displays quantum and classical similarity results for comparison
-- Database contains 4 vectors indexed by 2-qubit states (00, 01, 10, 11)
+
+- Loads pre-computed article embeddings from the pickle file
+- Handles user interaction for selecting articles for recommendation
+- Initializes the Grover search with appropriate dimensions based on the dataset
+- Executes quantum search to find similar articles based on embedding similarity
+- Displays both quantum and classical similarity recommendations for comparison
+- Handles errors and provides user feedback during the interaction process
+
+### Embedding Module (embedding/sentence_embedding.py)
+
+The Embedding module provides natural language sentence embedding capabilities.
+
+**Class: SentenceEmbedder**
+
+- **Purpose**: Converts text sentences into numerical vector representations
+- **Key Methods**:
+  - `__init__(model)`: Initializes with a specific sentence transformer model
+  - `embed(sentences)`: Converts a list of sentences into embeddings
+  - `apply_pca(embeddings, n_components)`: Reduces vector dimensionality using PCA
+
+**Technical Implementation**:
+
+- Uses the SentenceTransformer library for semantic embedding generation
+- Applies PCA dimensionality reduction to make embeddings suitable for quantum processing
+- Maintains consistent vector dimensions across all article embeddings
+- Provides methods for both embedding generation and transformation
+
+### Embedding Script (embed.py)
+
+Pre-processing script that generates and saves article embeddings.
+
+**Implementation Details**:
+
+- Loads the article dataset from CSV file
+- Uses SentenceEmbedder to generate high-dimensional embeddings for article titles
+- Applies PCA to reduce dimensionality to 128 features for quantum processing
+- Limits the dataset to a manageable size for quantum simulation (up to 64 articles)
+- Saves the pre-computed embeddings to a pickle file for later use in main.py
 
 ## Working Principle
 

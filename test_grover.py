@@ -1,4 +1,7 @@
 from grover.grover import GroverSearch
+import os
+import matplotlib.pyplot as plt
+import pennylane as qml
 
 
 def test_full_grover():
@@ -30,10 +33,26 @@ def test_full_grover():
         ([0.0, 0.0, 0.0, 1.0], "11"),  # Matches index 11
     ]
 
+    # Create diagrams directory if it doesn't exist
+    os.makedirs("diagrams/grover", exist_ok=True)
+
     for target_vector, expected_index in test_cases:
         print(
             f"\nSearching for vector {target_vector} (should match index {expected_index})"
         )
+
+        # Define a device and circuit for drawing
+        dev = qml.device("lightning.qubit", wires=grover.total_qubits)
+
+        @qml.qnode(dev)
+        def circuit():
+            return grover.build_circuit(database, target_vector, iterations=1)
+
+        # Draw and save the circuit diagram
+        fig, _ = qml.draw_mpl(circuit)()
+        fig.savefig(f"diagrams/grover/grover_circuit_{expected_index}.png")
+        plt.close(fig)
+        print(f"Circuit diagram saved to diagrams/grover_circuit_{expected_index}.png")
 
         # Run the search with 1 iteration and 1000 shots
         results = grover.search(database, target_vector, num_shots=1000, iterations=1)
@@ -63,4 +82,3 @@ def test_full_grover():
 
 if __name__ == "__main__":
     test_full_grover()
-

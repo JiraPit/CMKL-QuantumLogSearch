@@ -1,5 +1,7 @@
 import pennylane as qml
 import numpy as np
+import os
+import matplotlib.pyplot as plt
 from qram.qram import QRAM
 
 
@@ -63,6 +65,9 @@ def test_qram_lookup():
 
     qram.load_database(database)
 
+    # Create diagrams directory if it doesn't exist
+    os.makedirs("diagrams/qram", exist_ok=True)
+
     # Test lookup for each index
     dev = qml.device("lightning.qubit", wires=total_qubits)
 
@@ -78,6 +83,18 @@ def test_qram_lookup():
 
         # Measure data register
         return qml.probs(wires=qram.data_wires)
+
+    # Generate and save circuit diagrams for each index
+    for index_bits, index_name in [
+        ([0, 0], "00"),
+        ([0, 1], "01"),
+        ([1, 0], "10"),
+        ([1, 1], "11"),
+    ]:
+        fig, _ = qml.draw_mpl(circuit)(index_bits)
+        fig.savefig(f"diagrams/qram/qram_lookup_{index_name}.png")
+        plt.close(fig)
+        print(f"Circuit diagram saved to diagrams/qram_lookup_{index_name}.png")
 
     # Test for |00⟩ index
     print("Testing lookup for index |00⟩...")

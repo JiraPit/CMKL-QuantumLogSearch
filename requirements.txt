@@ -1,0 +1,5 @@
+pennylane
+numpy
+sentence-transformers
+scikit-learn
+pandas

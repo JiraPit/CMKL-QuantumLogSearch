@@ -1,5 +1,7 @@
 import pennylane as qml
 import numpy as np
+import os
+import matplotlib.pyplot as plt
 from swap_test.swap_test import SwapTest
 
 
@@ -16,6 +18,9 @@ def test_swap_test_identical():
     # Initialize SwapTest
     swap_test = SwapTest()
 
+    # Create diagrams directory if it doesn't exist
+    os.makedirs("diagrams/swap_test", exist_ok=True)
+
     @qml.qnode(dev)
     def circuit():
         # Prepare two identical states |01⟩
@@ -29,6 +34,12 @@ def test_swap_test_identical():
 
         # Measure the ancilla
         return qml.sample(wires=4)
+
+    # Draw and save the circuit diagram
+    fig, _ = qml.draw_mpl(circuit)()
+    fig.savefig("diagrams/swap_test/swap_test_identical.png")
+    plt.close(fig)
+    print("Circuit diagram saved to diagrams/swap_test_identical.png")
 
     # Run the circuit
     results = circuit()
@@ -71,6 +82,12 @@ def test_swap_test_orthogonal():
 
         # Measure the ancilla
         return qml.sample(wires=4)
+
+    # Draw and save the circuit diagram
+    fig, _ = qml.draw_mpl(circuit)()
+    fig.savefig("diagrams/swap_test/swap_test_orthogonal.png")
+    plt.close(fig)
+    print("Circuit diagram saved to diagrams/swap_test_orthogonal.png")
 
     # Run the circuit
     results = circuit()
@@ -122,6 +139,14 @@ def test_swap_test_partial_overlap():
         # Calculate expected overlap
         overlap = np.cos(theta / 2) ** 2
         expected_prob_0 = 0.5 * (1 + overlap**2)
+
+        # Draw and save the circuit diagram
+        fig, _ = qml.draw_mpl(circuit)(theta)
+        fig.savefig(f"diagrams/swap_test/swap_test_partial_theta_{theta:.2f}.png")
+        plt.close(fig)
+        print(
+            f"Circuit diagram saved to diagrams/swap_test_partial_theta_{theta:.2f}.png"
+        )
 
         # Run circuit
         results = circuit(theta)
