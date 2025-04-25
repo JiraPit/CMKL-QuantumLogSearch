@@ -1,173 +1,157 @@
-"""
-Quantum Recommender System
-
-A recommender system that uses quantum computing for similarity search.
-The system loads pre-computed article embeddings and performs similarity-based 
-recommendations using Grover's algorithm.
-"""
-
-import pickle
+import pandas as pd
+import pennylane as qml
 import numpy as np
-from pathlib import Path
-from grover.grover import GroverSearch
+import argparse
 
-SHOTS = 100
+from hash_module import hash
+from grover_module import qrom_grover_search
 
 
-def main():
-    """
-    Main function that runs the interactive quantum recommender system
-    """
-    # Load pre-computed embeddings
-    pre_computed_path = Path(__file__).parent / "pre_computed" / "pre_embedded_data.pkl"
+def main(database_dir, hash_length):
+    log_database = f"{database_dir}/log_data.csv"
+    hash_database = f"{database_dir}/hash_data.csv"
+    df = pd.read_csv(log_database, dtype=str)
+    hash_df = pd.read_csv(hash_database, dtype=str)
 
-    # Check if pre-computed embeddings exist
-    if not pre_computed_path.exists():
-        print("Pre-computed embeddings not found. Run embed.py first.")
+    while True:
+        print("\n--- Command Menu ---")
+        print("1. Search for a log entry")
+        print(": search <field>=<value>")
+        print("2. Add a log entry")
+        print(": add <field1>=<value1>,<field2>=<value2>,...")
+        print("3. Show last 5 log entries")
+        print(": show")
+        print()
+
+        command = input("Enter a command:")
+        try:
+            command, command_args = command.strip().split(" ")
+        except Exception:
+            command_args = ""
+
+        if command == "search":
+            handle_search(command_args, df, hash_df, hash_length)
+        elif command == "add":
+            df, hash_df = handle_add(command_args, df, hash_df, hash_length)
+        elif command == "show":
+            handle_show(df, hash_df)
+
+
+def handle_search(command_args, df, hash_df, hash_length):
+    """Search for a log entry based on a specific field and value."""
+    search_field, search_value = command_args.split("=")
+    if search_field not in df.columns:
+        print(f"Field '{search_field}' does not exist.")
         return
 
-    # Load pre-computed embeddings
-    print("Loading pre-computed embeddings...")
-    with open(pre_computed_path, "rb") as f:
-        pre_computed_data = pickle.load(f)
+    # Calculate lengh of address and value in bits
+    address_length = len(f"{len(hash_df[search_field]):b}")
+    value_length = len(hash_df[search_field][0])
 
-    # Extract data from the pickle file
-    embeddings = pre_computed_data["embeddings"]
-    filtered_df = pre_computed_data["filtered_df"]
-    vector_size = pre_computed_data["vector_size"]
+    print(f"Address length: {address_length} bits")
+    print(f"Value length: {value_length} bits")
 
-    # Calculate required data qubits for amplitude encoding
-    num_data_qubits = int(np.ceil(np.log2(vector_size)))
+    # Construct the data dictionary for QROM
+    data_dict = {
+        f"{i:0{address_length}b}": value
+        for i, value in enumerate(hash_df[search_field])
+    }
 
-    # Number of qubits needed for index addressing (number of articles)
-    num_articles = len(embeddings)
-    num_index_qubits = int(np.ceil(np.log2(num_articles)))
+    # Setup Wires
+    num_wires = address_length + value_length
+    address_wires = list(range(address_length))
+    target_wires = list(range(address_length, num_wires))
 
-    print(f"Database contains {num_articles} articles with {vector_size} features each")
-    print(f"Using {num_index_qubits} index qubits and {num_data_qubits} data qubits")
+    # Calculate the optimal number of iterations for Grover's algorithm
+    num_iterations = int(np.floor(np.pi / 4 * np.sqrt(len(data_dict))))
 
-    # Create database dictionary mapping binary indices to embedding vectors
-    database = {}
-    for i in range(num_articles):
-        binary_idx = format(i, f"0{num_index_qubits}b")
-        database[binary_idx] = embeddings[i].tolist()
+    # Hash the value
+    hashed_search_value = hash.hash_string(search_value)[:hash_length]
 
-    # Create the Grover search instance
-    grover = GroverSearch(num_index_qubits, num_data_qubits)
+    # Define the Grover circuit
+    @qml.qnode(qml.device("lightning.qubit", wires=num_wires))
+    def grover_node():
+        return qrom_grover_search.grover_circuit(
+            qrom_data=data_dict,
+            target_value=hashed_search_value,
+            address_wires=address_wires,
+            value_wires=target_wires,
+            num_iterations=num_iterations,
+        )
 
-    # Calculate the number of iterations based on the number of articles
-    iterations = int(np.floor(np.pi / 4 * np.sqrt(num_articles)))
+    # Search for the hashed value in the DataFrame
+    probabilities = grover_node()
 
-    # Main interaction loop
-    while True:
-        try:
-            # Get article index from user
-            print("\nEnter an article index to start or 'q' to quit:")
-            user_input = input().strip()
+    # Find all indices messured with enough probability
+    max_prob = np.max(probabilities)
+    threshold = max_prob * 0.9
+    found_indices = np.where(probabilities >= threshold)[0]
 
-            if user_input.lower() == "q":
-                break
+    # Convert index to binary address string
+    for found_index in found_indices:
+        measured_prob = probabilities[found_index]
+        measured_address = format(found_index, f"0{address_length}b")
+        print(
+            f"\nMeasured Output Address State: |{measured_address}> which is index {found_index} with probability {measured_prob:.4f}"
+        )
+        print(df.loc[found_index])
+        print()
 
-            article_idx = int(user_input)
 
-            # Check if the index is valid
-            if article_idx < 0 or article_idx >= num_articles:
-                raise ValueError(
-                    f"Article index must be between 0 and {num_articles-1}"
-                )
+def handle_add(command_args, df, hash_df, hash_length):
+    """Add a new log entry to the DataFrame and update the hash DataFrame."""
+    new_entry = {}
+    for field in command_args.split(","):
+        key, value = field.split("=")
+        if key not in df.columns:
+            print(f"Field '{key}' does not exist.")
+            return df, hash_df
+        new_entry[key] = value
 
-            # Display selected article
-            article = filtered_df.iloc[article_idx]
-            print(f"\nSelected Article [{article_idx}]:")
-            print(f"Title: {article['doc_full_name']}")
-            if "doc_description" in article:
-                print(f"Description: {article['doc_description']}")
+    # Append the new entry to the DataFrame
+    df = pd.concat(
+        [df, pd.DataFrame([new_entry], columns=df.columns)], ignore_index=True
+    )
 
-            # Get the target article's embedding as the search target
-            omega = embeddings[article_idx].tolist()
+    # Hash the new entry and append to hash_df
+    hashed_entry = {
+        key: hash.hash_string(value)[:hash_length] for key, value in new_entry.items()
+    }
+    hash_df = pd.concat(
+        [hash_df, pd.DataFrame([hashed_entry], columns=hash_df.columns)],
+        ignore_index=True,
+    )
+    print("New entry added successfully.")
+    print()
 
-            # Normalize the target vector
-            norm = np.linalg.norm(omega)
-            omega = [v / norm for v in omega]
+    return df, hash_df
 
-            # Run the search with specified parameters
-            print("\nFinding similar articles using Grover's algorithm...")
-            print(f"Running with {iterations} iteration(s) and {SHOTS} shots...")
 
-            results = grover.search(
-                database,
-                omega,
-                num_shots=SHOTS,
-                iterations=iterations,
-            )
-
-            # Find top similar articles (excluding the selected article itself)
-            print("\nRecommended Articles:")
-            similar_articles = []
-
-            # Process and sort results
-            for idx, prob in results.items():
-                binary_idx = format(idx, f"0{num_index_qubits}b")
-                result_idx = int(binary_idx, 2)
-
-                # Skip if this is the same article or invalid index
-                if result_idx == article_idx or result_idx >= num_articles:
-                    continue
-
-                similar_articles.append((result_idx, prob))
-
-            # Sort by probability (descending) and take top 5
-            similar_articles.sort(key=lambda x: x[1], reverse=True)
-            top_similar = similar_articles[:5]
-
-            # Display recommended articles
-            for idx, similarity in top_similar:
-                similar = filtered_df.iloc[idx]
-                print(
-                    f"[{idx}] {similar['doc_full_name']} (similarity: {similarity:.4f})"
-                )
-
-            # Also calculate classical similarity for comparison
-            print("\nClassical similarity recommendations:")
-            classical_similar = []
-
-            for i in range(num_articles):
-                if i == article_idx:
-                    continue
-
-                # Calculate cosine similarity
-                vec1 = np.array(embeddings[article_idx])
-                vec2 = np.array(embeddings[i])
-
-                # Normalize vectors
-                vec1 = vec1 / np.linalg.norm(vec1)
-                vec2 = vec2 / np.linalg.norm(vec2)
-
-                similarity = np.dot(vec1, vec2)
-                classical_similar.append((i, similarity))
-
-            # Sort by similarity (descending) and take top 5
-            classical_similar.sort(key=lambda x: x[1], reverse=True)
-            top_classical = classical_similar[:5]
-
-            # Display classical recommendations
-            for idx, similarity in top_classical:
-                similar = filtered_df.iloc[idx]
-                print(
-                    f"[{idx}] {similar['doc_full_name']} (similarity: {similarity:.4f})"
-                )
-
-        except ValueError as e:
-            print(f"Error: {e}. Please enter a valid article index.")
-        except IndexError:
-            print(
-                f"Error: Article index out of range. Dataset has {num_articles} articles."
-            )
-        except KeyboardInterrupt:
-            break
-
-    print("Exiting quantum recommender system.")
+def handle_show(df, hash_df):
+    """Display the last 5 log entries and their hashed values."""
+    print("\nLast 5 log entries:")
+    print(df.tail(5))
+    print("\nLast 5 hashed log entries:")
+    print(hash_df.tail(5))
+    print()
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(
+        description="Hash data from log_data.csv and save to hash_data.csv within a specified directory."
+    )
+    parser.add_argument(
+        "--db",
+        type=str,
+        required=True,
+        help="Path to the folder containing log_data.csv and where hash_data.csv will be saved.",
+    )
+    parser.add_argument(
+        "--len",
+        type=int,
+        default=12,
+        help="Length of the hash to be generated.",
+    )
+    args = parser.parse_args()
+
+    main(args.db, args.len)

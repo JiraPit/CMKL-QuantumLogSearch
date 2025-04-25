@@ -1,144 +1,66 @@
-# Quantum Recommender System
+# CMKL-LogSearch
 
-A quantum similarity search implementation using QRAM, Swap Test, and Grover's algorithm for quantum recommender systems.
+A quantum computing-based log search system that leverages quantum algorithms for unsorted log data retrieval.
 
-## Project Structure and Implementation Details
-
-### File Structure
+## Project Structure
 
 ```
-QuantumRecommender/
-├── qram/
-│   ├── __init__.py
-│   └── qram.py         # QRAM implementation
-├── swap_test/
-│   ├── __init__.py
-│   └── swap_test.py    # Swap Test implementation
-├── grover/
-│   ├── __init__.py
-│   └── grover.py       # Grover's algorithm implementation
-├── embedding/
-│   ├── __init__.py
-│   └── sentence_embedding.py # Sentence embedding implementation
-├── dataset/
-│   └── articles_database.csv # Input article dataset
-├── pre_computed/
-│   └── pre_embedded_data.pkl # Pre-computed embeddings
-├── diagrams/           # All circuit diagrams
-│   ├── grover/         # Grover's circuit diagrams
-│   ├── swap_test/      # Swap Test's circuit diagrams
-│   └── qram/           # QRAM's circuit diagrams
-├── embed.py            # Embedding generation script
-├── main.py             # Interactive recommender interface
-└── various test files  # Unit and integration tests
+CMKL-LogSearch/
+- database[x]/             # Log database with [x] entries
+- grover_module/           # Quantum search implementation
+- hash_module/             # Classical hash generation
+- qrom_module/             # Quantum ROM implementation
+- main.py                  # Application entry point
+- preprocess_data.py       # Data preparation utilities
 ```
 
-### QRAM Module (qram/qram.py)
+## Module Integration
 
-The QRAM module implements quantum random access memory for storing and retrieving quantum data.
+The system processes and searches log data through the following workflow:
 
-**Class: QRAM**
+1. `preprocess_data.py` reads raw log files from a specified database directory and generates hash representations using `hash_module`.
+2. `hash_module` converts text strings into binary hash representations using SHA-3 256 cryptographic hash function.
+3. `qrom_module` implements a Quantum Read-Only Memory that maps address qubits to value qubits using multi-controlled X gates.
+4. `grover_module` implements Grover's search algorithm with an oracle that uses the QROM to mark states where the target value matches the search criteria.
+5. `main.py` integrates these components, providing a command interface for searching, adding, and displaying log entries.
 
-- **Purpose**: Maps indices to data vectors using quantum operations
-- **Key Methods**:
-  - `__init__(num_index_qubits, num_data_qubits)`: Initializes the QRAM with specified dimensions
-  - `load_database(database)`: Loads classical vectors into quantum superposition
-  - `_amplitude_encoding(vector, wires)`: Encodes classical vectors into qubit amplitudes
-  - `_selective_state_preparation(target_idx, vector)`: Prepares specific states conditional on index
-  - `build_lookup_circuit()`: Creates quantum circuit that performs data lookup based on index
+## Technical Details
 
-**Technical Implementation**:
+### hash_module
 
-- Uses controlled operations to selectively load data based on index register state
-- Maps binary index strings to quantum amplitude-encoded data vectors
-- Ensures data normalization for proper quantum amplitude encoding
-- Operates on separate index and data wire registries
+Implements SHA-3 256 hashing algorithm to convert string inputs into fixed-length binary representations. The module encodes strings using UTF-8, applies the hash function, and converts bytes to binary strings with configurable truncation length.
 
-### Swap Test Module (swap_test/swap_test.py)
+### qrom_module
 
-The Swap Test module implements quantum similarity measurement between quantum states.
+Implements Quantum Read-Only Memory using multi-controlled X gates to map binary address states to binary target states. The module applies controlled operations based on a dictionary mapping address strings to target strings, enabling quantum superposition-based data retrieval.
 
-**Class: SwapTest**
+### grover_module
 
-- **Purpose**: Quantifies similarity between two quantum states
-- **Key Methods**:
-  - `build_circuit(state1_wires, state2_wires, ancilla_wire)`: Creates swap test circuit
+Implements Grover's quantum search algorithm with a QROM-based oracle. The module includes components for:
 
-**Technical Implementation**:
+- Multi-controlled Z gate implementation
+- Oracle construction using QROM operations and phase marking
+- Diffusion operator for amplitude amplification
+- Circuit construction with optimal iteration calculation based on search space size
 
-- Applies Hadamard gate to ancilla qubit
-- Performs controlled-SWAP operations between corresponding qubits in the two states
-- Final Hadamard on ancilla creates interference pattern reflecting state similarity
-- Probability of measuring ancilla as |0⟩ relates to state overlap: p(|0⟩) = (1 + |⟨ψ|φ⟩|²)/2
-- Identical states yield p(|0⟩) = 1, orthogonal states yield p(|0⟩) = 0.5
+### preprocess_data.py
 
-### Grover Search Module (grover/grover.py)
+Converts log data CSV files into hash-based representations through column-wise processing. The module reads from log_data.csv, applies hash functions to each value, and writes the results to hash_data.csv with configurable hash length.
 
-The Grover Search module implements quantum search with amplitude amplification.
+### main.py
 
-**Class: GroverSearch**
+Provides a command-line interface with three primary functions:
 
-- **Purpose**: Finds database entries similar to a target vector using quantum amplitude amplification
-- **Key Methods**:
-  - `_initialize_omega(omega)`: Initializes target state
-  - `_initialize_index_register()`: Creates superposition of all possible indices
-  - `_oracle()`: Marks states similar to target omega using QRAM and swap test
-  - `_grover_iteration()`: Performs one iteration of Grover's algorithm
-  - `build_circuit(database, omega, iterations)`: Constructs complete quantum circuit
-  - `search(database, omega, num_shots, iterations)`: Executes search and returns results
+- Search: Uses Grover's algorithm with QROM to find log entries that match search criteria
+- Add: Inserts new log entries with automatic hash generation
+- Show: Displays the most recent log entries in both original and hashed form
 
-**Technical Implementation**:
+## Usage
 
-- Integrates QRAM and SwapTest in the oracle function
-- Oracle implements phase-flip on states where swap test indicates high similarity
-- Diffusion operator implements reflection about average amplitude
-- Wire management ensures proper connectivity between index, data, omega, and ancilla qubits
-- Optimal number of iterations calculated as O(√N) where N is database size
+```
+# Preprocess the database
+python preprocess_data.py --db <database_directory> --len <hash_length>
 
-### Main Program (main.py)
-
-Interactive command-line interface that implements the quantum recommender system.
-
-**Implementation Details**:
-
-- Loads pre-computed article embeddings from the pickle file
-- Handles user interaction for selecting articles for recommendation
-- Initializes the Grover search with appropriate dimensions based on the dataset
-- Executes quantum search to find similar articles based on embedding similarity
-- Displays both quantum and classical similarity recommendations for comparison
-- Handles errors and provides user feedback during the interaction process
-
-### Embedding Module (embedding/sentence_embedding.py)
-
-The Embedding module provides natural language sentence embedding capabilities.
-
-**Class: SentenceEmbedder**
-
-- **Purpose**: Converts text sentences into numerical vector representations
-- **Key Methods**:
-  - `__init__(model)`: Initializes with a specific sentence transformer model
-  - `embed(sentences)`: Converts a list of sentences into embeddings
-  - `apply_pca(embeddings, n_components)`: Reduces vector dimensionality using PCA
-
-**Technical Implementation**:
-
-- Uses the SentenceTransformer library for semantic embedding generation
-- Applies PCA dimensionality reduction to make embeddings suitable for quantum processing
-- Maintains consistent vector dimensions across all article embeddings
-- Provides methods for both embedding generation and transformation
-
-### Embedding Script (embed.py)
-
-Pre-processing script that generates and saves article embeddings.
-
-**Implementation Details**:
-
-- Loads the article dataset from CSV file
-- Uses SentenceEmbedder to generate high-dimensional embeddings for article titles
-- Applies PCA to reduce dimensionality to 128 features for quantum processing
-- Limits the dataset to a manageable size for quantum simulation (up to 64 articles)
-- Saves the pre-computed embeddings to a pickle file for later use in main.py
-
-## Working Principle
-
-Full working principle can be found at: [WORKING_PRINCIPLE](WORKING_PRINCIPLE.md)
+# Start the command-line interface
+python main.py --db <database_directory> --len <hash_length>
+```
