@@ -1,4 +1,4 @@
-# CMKL-LogSearch
+# CMKL-QuantumLogSearch
 
 A quantum computing-based log search system that leverages quantum algorithms for unsorted log data retrieval.
 
