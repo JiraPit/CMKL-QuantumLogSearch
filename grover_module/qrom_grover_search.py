@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import math
 import pathlib
-from qrom_module import qrom
+from qrom_module import optimized_qrom as qrom
 
 SCRIPT_PATH = pathlib.Path(__file__).parent.resolve()
 
@@ -69,7 +69,6 @@ def oracle(
             qml.PauliX(wires=value_wires[i])
 
     # Uncompute QROM: |a>|V(a)> -> |a>|0>
-    # Since QROM uses MCX gates, its inverse is itself.
     qrom.qrom_operation(qrom_data, address_wires, value_wires)
 
 
@@ -130,26 +129,14 @@ if __name__ == "__main__":
 
     # Define QROM data
     data_dict = {
-        "0000": "10101",
-        "0001": "01100",
-        "0010": "11011",
-        "0011": "00101",
-        "0100": "10010",
-        "0101": "11110",
-        "0110": "01001",
-        "0111": "10111",
-        "1000": "00011",
-        "1001": "11000",
-        "1010": "01111",
-        "1011": "10001",
-        "1100": "00110",
-        "1101": "11101",
-        "1110": "01011",
-        "1111": "00000",
+        "00": "10101",
+        "01": "01100",
+        "10": "11011",
+        "11": "00101",
     }
 
     # Define target value
-    target_value = "00011"
+    target_value = "11011"
 
     print("--- Grover Search with QROM ---")
     print(f"Searching for address 'a' such that QROM(a) = |{target_value}>")
