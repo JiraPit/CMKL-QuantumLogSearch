@@ -1,3 +1,31 @@
+"""
+Quantum Anomaly Detection on Synthetic Log Data
+
+Description:
+    This script generates a synthetic dataset of log messages with various
+    features (severity, message length, digit count, special character count)
+    and a binary anomaly label. It then scales the features, splits the data
+    into train and test sets, and trains a quantum variational classifier
+    using PennyLane's AngleEmbedding and BasicEntanglerLayers. Training
+    progress (MSE loss and accuracy) is logged every 10 iterations and
+    final performance is evaluated via accuracy and F1 score on the test set.
+
+Dependencies:
+    - pennylane
+    - numpy (via pennylane.numpy)
+    - pandas
+    - scikit-learn
+    - matplotlib
+
+Usage:
+    python quantum_log_anomaly.py
+
+Notes:
+    - Adjust `n_samples`, `num_layers`, `num_iter`, and optimizer settings
+      to experiment with different dataset sizes and model complexities.
+    - Requires a working PennyLane backend (default.qubit) and standard
+      Python scientific packages installed.
+"""
 import pennylane as qml
 from pennylane import numpy as np
 from pennylane.optimize import AdamOptimizer
